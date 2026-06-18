@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <meta name="theme-color" content="#06050f"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <title>Music Player</title>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<!-- ══════════════════════════════════════
+     VISTA: LISTA / BIBLIOTECA
+══════════════════════════════════════ -->
+<div id="viewList" class="view active">
+
+  <header class="list-header">
+    <button class="icon-btn" onclick="openMenu()">☰</button>
+    <h1 class="list-brand">Mis canciones</h1>
+    <div class="header-icons">
+      <button class="icon-btn" id="searchToggle" onclick="toggleSearch()">🔍</button>
+    </div>
+  </header>
+
+  <!-- Barra de búsqueda (oculta por defecto) -->
+  <div id="searchBar" class="search-bar hidden">
+    <input id="searchInput" type="text" placeholder="Buscar canción o artista…" oninput="onSearch(this.value)"/>
+    <button onclick="clearSearch()">✕</button>
+  </div>
+
+  <nav class="tabs">
+    <button class="tab active"  onclick="setTab(this,'canciones')">Canciones</button>
+    <button class="tab"         onclick="setTab(this,'playlists')">Playlists</button>
+    <button class="tab"         onclick="setTab(this,'albumes')">Álbumes</button>
+    <button class="tab"         onclick="setTab(this,'carpetas')">Carpetas</button>
+  </nav>
+
+  <div id="listControls" class="list-controls">
+    <span id="songCount" class="song-count">0 Canciones</span>
+    <div class="list-icons">
+      <button class="icon-btn small" onclick="toggleSortMenu()" title="Ordenar">⇅</button>
+    </div>
+  </div>
+
+  <!-- Sort menu -->
+  <div id="sortMenu" class="sort-menu hidden">
+    <button onclick="sortSongs('title')">Por título A→Z</button>
+    <button onclick="sortSongs('artist')">Por artista A→Z</button>
+    <button onclick="sortSongs('default')">Por defecto</button>
+  </div>
+
+  <div id="playRow" class="play-row">
+    <button class="play-row-btn" onclick="shuffleAll()">⇄ Aleatorio</button>
+    <button class="play-row-btn accent-btn" onclick="playAll()">▶ Reproducir</button>
+  </div>
+
+  <div id="songList" class="song-list"></div>
+
+  <!-- Mini barra -->
+  <div id="miniBar" class="mini-bar" onclick="openPlayer()">
+    <div id="miniArt" class="mini-art">♪</div>
+    <div class="mini-progress-line"><div id="miniProgress" class="mini-progress-fill"></div></div>
+    <div class="mini-info">
+      <div id="miniTitle" class="mini-title">—</div>
+      <div id="miniArtist" class="mini-artist">—</div>
+    </div>
+    <button id="miniPlayBtn" class="mini-play" onclick="event.stopPropagation();togglePlay()">▶</button>
+    <button class="mini-queue icon-btn" onclick="event.stopPropagation();openPlayer()">≡</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     VISTA: REPRODUCTOR
+══════════════════════════════════════ -->
+<div id="viewPlayer" class="view">
+  <div id="playerBg" class="player-bg"></div>
+
+  <div class="player-topbar">
+    <button class="icon-btn white" onclick="closePlayer()">∨</button>
+    <div class="player-topbar-center">
+      <span class="topbar-label active">Canción</span>
+    </div>
+    <button class="icon-btn white" onclick="openSongMenu()">⋮</button>
+  </div>
+
+  <div class="art-wrap">
+    <div id="bigArt" class="big-art">
+      <span id="bigEmoji">♪</span>
+      <img id="bigImg" src="" alt="" style="display:none"/>
+    </div>
+  </div>
+
+  <div class="player-info-row">
+    <div class="player-info">
+      <div id="playerTitle" class="player-title">—</div>
+      <div id="playerArtist" class="player-artist">&lt;unknown&gt;</div>
+    </div>
+    <div class="player-side-actions">
+      <button id="favBtn" class="side-btn" onclick="toggleFav()" title="Favorita">♡</button>
+      <button class="side-btn" onclick="openAddToPlaylist()" title="Agregar a playlist">＋</button>
+    </div>
+  </div>
+
+  <div class="progress-section">
+    <div id="progressWrap" class="progress-wrap">
+      <div id="progressFill" class="progress-fill"></div>
+      <div id="progressThumb" class="progress-thumb"></div>
+    </div>
+    <div class="time-row">
+      <span id="curTime">0:00</span>
+      <span id="durTime">0:00</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="shuffleBtn" class="ctrl-btn" onclick="toggleShuffle()" title="Aleatorio">⇄</button>
+    <button class="ctrl-btn" onclick="prevSong()" title="Anterior">⏮</button>
+    <button id="playBtn" class="ctrl-btn play-main" onclick="togglePlay()">
+      <span id="playIcon">▶</span>
+    </button>
+    <button class="ctrl-btn" onclick="nextSong()" title="Siguiente">⏭</button>
+    <button id="repeatBtn" class="ctrl-btn" onclick="toggleRepeat()" title="Repetir">↺</button>
+  </div>
+
+  <!-- Cola de reproducción -->
+  <div class="queue-section">
+    <div class="queue-title">A continuación</div>
+    <div id="queueList" class="queue-list"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     MODAL: CREAR / EDITAR PLAYLIST
+══════════════════════════════════════ -->
+<div id="modalPlaylist" class="modal-overlay hidden" onclick="closeModal('modalPlaylist')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title" id="modalPlaylistTitle">Nueva Playlist</div>
+    <input id="playlistNameInput" class="modal-input" type="text" placeholder="Nombre de la playlist…" maxlength="40"/>
+    <div class="modal-emoji-row" id="playlistEmojiRow"></div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeModal('modalPlaylist')">Cancelar</button>
+      <button class="modal-btn confirm" onclick="savePlaylist()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     MODAL: AGREGAR A PLAYLIST
+══════════════════════════════════════ -->
+<div id="modalAddTo" class="modal-overlay hidden" onclick="closeModal('modalAddTo')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title">Agregar a playlist</div>
+    <div id="addToList" class="modal-list"></div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeModal('modalAddTo')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     MODAL: MENÚ DE CANCIÓN
+══════════════════════════════════════ -->
+<div id="modalSongMenu" class="modal-overlay hidden" onclick="closeModal('modalSongMenu')">
+  <div class="modal-box bottom-sheet" onclick="event.stopPropagation()">
+    <div class="modal-title" id="songMenuTitle">Opciones</div>
+    <button class="sheet-btn" onclick="songMenuFav()">♡ Agregar a favoritos</button>
+    <button class="sheet-btn" onclick="songMenuPlaylist()">＋ Agregar a playlist</button>
+    <button class="sheet-btn" onclick="closeModal('modalSongMenu')">Cancelar</button>
+  </div>
+</div>
+
+<!-- Marca de agua -->
+<div class="watermark">
+  Hecho por Brayan Adonay Chicas León
+</div>
+
+<!-- ══════════════════════════════════════
+     TOAST
+══════════════════════════════════════ -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="player.js"></script>
+</body>
+</html>
